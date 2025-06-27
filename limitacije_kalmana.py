@@ -33,7 +33,7 @@ max_x,max_y,max_z=grid.shape
 
 
 prepreke = [
-    {"x": 50, "y": 50, "r": 5, "h": 40},
+    {"x": 50, "y": 50, "r": 5, "h": 100},
     # {"x": 40, "y": 10, "r": 5, "h": 40},
     # {"x": 40, "y": 20, "r": 5, "h": 40},
     # {"x": 40, "y": 50, "r": 5, "h": 40},
@@ -56,7 +56,7 @@ prepreke = [
     # {"x": 70, "y": 50, "r": 5, "h": 40},
     # {"x": 70, "y": 60, "r": 5, "h": 40},
     # {"x": 70, "y": 70, "r": 5, "h": 40},
-    # {"x": 70, "y": 80, "r": 5, "h": 40}, ""
+    # {"x": 70, "y": 80, "r": 5, "h": 40},
     # {"x": 70, "y": 90, "r": 5, "h": 40}
 ]
 
@@ -73,14 +73,16 @@ ax.set_title("Simulacija: Dron prati objekat")
 dron_dot, = ax.plot([], [], [], 'go', label='Dron')
 obj_dot, = ax.plot([], [], [], 'ro', label='Objekat')
 linija, = ax.plot([], [], [], 'b-')
+
+kalman_dot, = ax.plot([], [], [], 'x', color='black', label='Kalman predikcija')
 # Prepreke
 for p in prepreke:
     draw_cylinder(ax, p["x"], p["y"], p["r"], p["h"], grid)
-print("Broj prepreka u grid-u:", np.sum(grid))
+
 # Pozicije
 
-dron_pos = np.array([10.0, 10.0, 20.0])
-objekat_pos = np.array([20.0, 20.0, 10.0])
+dron_pos = np.array([5.0, 50.0, 20.0])
+objekat_pos = np.array([10.0, 50.0, 10.0])
 
 
 objekat_directions = [
@@ -90,21 +92,13 @@ objekat_directions = [
 ]
 
 putanja = [
-    np.array([10.0, 50.0, 10.0]),   # Start
+    np.array([10.0, 50.0, 10.0]), 
 
-    # Prilazak ka prepreci
     np.array([25.0, 50.0, 10.0]),
     np.array([30.0, 50.0, 10.0]),
 
-    # Skretanje levo ispred prepreke
-    # np.array([40.0, 40.0, 10.0]),
+    np.array([60.0, 60.0, 10.0]),
 
-    # Polukrug oko prepreke sa bezbednim rastojanjem
-    #np.array([45.0, 45.0, 10.0]),   # sa leve strane
-    np.array([60.0, 60.0, 10.0]),   # iznad prepreke
-    # np.array([55.0, 57.0, 10.0]),   # s desne strane
-
-    # Nastavlja pravo dalje
     np.array([60.0, 60.0, 10.0]),
     np.array([60.0, 70.0, 10.0]),
     np.array([70.0, 70.0, 10.0]),
@@ -132,8 +126,9 @@ br=0
 br_ukupno=0
 
 angle_log=[]
+kalman_predict=[]
 # br_line=0
-for step in range(STEPS):
+#for step in range(STEPS):
 #     if step % 23 == 0 and step > 0:
 #         direction_index = (direction_index + 1) % len(objekat_directions)
 #         objekat_vel = objekat_directions[direction_index] / np.linalg.norm(objekat_directions[direction_index]) * OBJECT_SPEED
@@ -143,64 +138,68 @@ for step in range(STEPS):
 #     if 0 <= gx < GRID_SIZE and 0 <= gy < GRID_SIZE and 0 <= gz < GRID_SIZE and grid[gz, gy, gx] == 0:
 #         objekat_pos = next_obj
 #     
+kalman_preds = []
+while putanja_ind < len(putanja):
+    sledeca_tacka = putanja[putanja_ind]
+    smer = sledeca_tacka - objekat_pos
+    udaljenost = np.linalg.norm(smer)
 
-    if putanja_ind < len(putanja):
-        sledeca_tacka = putanja[putanja_ind]
-        smer = sledeca_tacka - objekat_pos
-        udaljenost = np.linalg.norm(smer)
-
-        if udaljenost < OBJECT_SPEED:
-            objekat_pos = sledeca_tacka
-            putanja_ind += 1
-            if putanja_ind >= len(putanja):
-                objekat_vel = np.zeros(3)
-            else:
-                sledeca_tacka = putanja[putanja_ind]
-                smer = sledeca_tacka - objekat_pos
-                udaljenost = np.linalg.norm(smer)
-                objekat_vel = smer / udaljenost * OBJECT_SPEED
+    if udaljenost < OBJECT_SPEED:
+        objekat_pos = sledeca_tacka
+        putanja_ind += 1
+        if putanja_ind >= len(putanja):
+            objekat_vel = np.zeros(3)
         else:
+            sledeca_tacka = putanja[putanja_ind]
+            smer = sledeca_tacka - objekat_pos
+            udaljenost = np.linalg.norm(smer)
             objekat_vel = smer / udaljenost * OBJECT_SPEED
-            next_obj = objekat_pos + objekat_vel
-            gx, gy, gz = int(round(next_obj[0])), int(round(next_obj[1])), int(round(next_obj[2]))
-            #if 0 <= gx < GRID_SIZE and 0 <= gy < GRID_SIZE and 0 <= gz < GRID_SIZE and grid[gz, gy, gx] == 0:
+    else:
+        objekat_vel = smer / udaljenost * OBJECT_SPEED
+        next_obj = objekat_pos + objekat_vel
+        gx, gy, gz = int(round(next_obj[0])), int(round(next_obj[1])), int(round(next_obj[2]))
+        if 0 <= gx < GRID_SIZE and 0 <= gy < GRID_SIZE and 0 <= gz < GRID_SIZE and grid[gz, gy, gx] == 0:
             objekat_pos = next_obj
-            # else:
-            #     objekat_vel = np.zeros(3)  # staje kad udari u prepreku
+        # else:
+        #     objekat_vel = np.zeros(3)  # staje kad udari u prepreku
 
-        objekat_path.append(objekat_pos.copy())  # OBAVEZNO: beleži pozicije za animaciju
-
-
-        vidi_objekat = is_in_fov(dron_pos, objekat_pos, grid)
-        predicted = kf.predict()
+    objekat_path.append(objekat_pos.copy())  #beleži pozicije za animaciju
 
 
-        # VIDI OBJEKAT
-        if vidi_objekat:
-            print(f"[STEP {step}] UPDATE: vidi objekat.")
-            kf.update(objekat_pos)
-            target = objekat_pos
-            # objekat_visible[step]=1
-            # vidi_time[step]+=1
-            br+=1
+    vidi_objekat = is_in_fov(dron_pos, objekat_pos, grid)
+    predicted = kf.predict()
+    kalman_preds.append(predicted.copy())
 
-            
-        br_ukupno+=1
 
-        vec = target - dron_pos
-        dron_dir = np.arctan2(vec[1], vec[0])
-        dist = np.linalg.norm(vec)
 
-        if dist > MIN_DISTANCE:
-            desired_pos = target - (vec / dist * MIN_DISTANCE)  # pozicija koja drži distancu
-            vec_to_desired = desired_pos - dron_pos
-            dist_to_desired = np.linalg.norm(vec_to_desired)
+    # VIDI OBJEKAT
+    if vidi_objekat:
+        print(f"[STEP {putanja_ind}] UPDATE: vidi objekat.")
+        kf.update(objekat_pos)
+        target = objekat_pos
+        # objekat_visible[step]=1
+        # vidi_time[step]+=1
         
-        if dist_to_desired > 0:
-            step = min(DRONE_SPEED, dist_to_desired)
-            move = vec_to_desired / dist_to_desired * step
-            dron_pos += move
-        
+        br+=1
+
+
+
+    br_ukupno+=1
+
+    vec = target - dron_pos
+    dron_dir = np.arctan2(vec[1], vec[0])
+    dist = np.linalg.norm(vec)
+
+    if dist > MIN_DISTANCE:
+        desired_pos = target - (vec / dist * MIN_DISTANCE)  # pozicija koja drži distancu
+        vec_to_desired = desired_pos - dron_pos
+        dist_to_desired = np.linalg.norm(vec_to_desired)
+
+    if dist_to_desired > 0:
+        step = min(DRONE_SPEED, dist_to_desired)
+        move = vec_to_desired / dist_to_desired * step
+        dron_pos += move
+
         vector = objekat_pos - dron_pos
         angle_rad = np.arctan2(vector[1], vector[0])
         angle_deg = np.degrees(angle_rad)
@@ -210,7 +209,7 @@ for step in range(STEPS):
         colors.append("green" if vidi_objekat else "blue")
         fovs.append(dron_dir)
     else:
-        print(f"[STEP {step}] PREDICT: objekat van FOV.")
+        print(f"[STEP {putanja_ind}] PREDICT: objekat van FOV.")
         target = predicted
 
 
@@ -227,18 +226,22 @@ print(procenat)
 def update(frame):
     d = dron_path[frame]
     o = objekat_path[frame]
+    k = kalman_preds[frame]
+
     dron_dot.set_data([d[0]], [d[1]])
     dron_dot.set_3d_properties([d[2]])
     obj_dot.set_data([o[0]], [o[1]])
     obj_dot.set_3d_properties([o[2]])
+
+    kalman_dot.set_data([k[0]], [k[1]])
+    kalman_dot.set_3d_properties([k[2]])
     linija.set_data([d[0], o[0]], [d[1], o[1]])
     linija.set_3d_properties([d[2], o[2]])
     linija.set_color(colors[frame])
     return dron_dot, obj_dot, linija
 
-ani = FuncAnimation(fig, update, frames=len(objekat_path), interval=100, blit=True)
+ani = FuncAnimation(fig, update, frames=len(objekat_path), interval=100, blit=False)
 plt.legend()
-ani.save("vid7_3D.mp4", writer="ffmpeg", fps=10)
 plt.show()
 
 
@@ -286,5 +289,4 @@ axs[3].legend(loc="upper right")
 
 plt.tight_layout()
 plt.show()
-plt.legend()
 
