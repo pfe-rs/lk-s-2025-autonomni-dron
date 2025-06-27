@@ -56,7 +56,7 @@ prepreke = [
     # {"x": 70, "y": 50, "r": 5, "h": 40},
     # {"x": 70, "y": 60, "r": 5, "h": 40},
     # {"x": 70, "y": 70, "r": 5, "h": 40},
-    # {"x": 70, "y": 80, "r": 5, "h": 40},
+    # {"x": 70, "y": 80, "r": 5, "h": 40}, ""
     # {"x": 70, "y": 90, "r": 5, "h": 40}
 ]
 
@@ -90,24 +90,25 @@ objekat_directions = [
 ]
 
 putanja = [
-    np.array([10.0, 10.0, 10.0]),   # Start
+    np.array([10.0, 50.0, 10.0]),   # Start
 
     # Prilazak ka prepreci
-    np.array([25.0, 25.0, 10.0]),
-    np.array([40.0, 40.0, 10.0]),
+    np.array([25.0, 50.0, 10.0]),
+    np.array([30.0, 50.0, 10.0]),
 
     # Skretanje levo ispred prepreke
-    np.array([45.0, 45.0, 10.0]),
+    # np.array([40.0, 40.0, 10.0]),
 
     # Polukrug oko prepreke sa bezbednim rastojanjem
-    np.array([47.0, 50.0, 10.0]),   # sa leve strane
-    np.array([50.0, 55.0, 10.0]),   # iznad prepreke
-    np.array([55.0, 57.0, 10.0]),   # s desne strane
+    #np.array([45.0, 45.0, 10.0]),   # sa leve strane
+    np.array([60.0, 60.0, 10.0]),   # iznad prepreke
+    # np.array([55.0, 57.0, 10.0]),   # s desne strane
 
     # Nastavlja pravo dalje
     np.array([60.0, 60.0, 10.0]),
+    np.array([60.0, 70.0, 10.0]),
     np.array([70.0, 70.0, 10.0]),
-    np.array([80.0, 80.0, 10.0])
+    np.array([90.0, 60.0, 10.0]),
 ]
 
 
@@ -237,7 +238,7 @@ def update(frame):
 
 ani = FuncAnimation(fig, update, frames=len(objekat_path), interval=100, blit=True)
 plt.legend()
-ani.save("vid6_2D.mp4", writer="ffmpeg", fps=10)
+ani.save("vid7_3D.mp4", writer="ffmpeg", fps=10)
 plt.show()
 
 
@@ -286,4 +287,4 @@ axs[3].legend(loc="upper right")
 plt.tight_layout()
 plt.show()
 plt.legend()
-plt.show()
+
