@@ -19,12 +19,12 @@ import vidno_polje
 
 # Parametri
 GRID_SIZE = 100
-STEPS = 300
+STEPS = 350
 DRONE_SPEED = 1.0
 OBJECT_SPEED = 2
 FOV_DEGREES = 90
 FOV_RADIUS = 30
-MIN_DISTANCE = 4.0
+MIN_DISTANCE = 10
 
 # Grid i prepreke
 grid = np.zeros((GRID_SIZE, GRID_SIZE, GRID_SIZE), dtype=int)
@@ -32,31 +32,7 @@ max_x,max_y,max_z=grid.shape
 
 
 prepreke = [
-    {"x": 40, "y": 40, "r": 5, "h": 40},
-    {"x": 40, "y": 10, "r": 5, "h": 40},
-    {"x": 40, "y": 20, "r": 5, "h": 40},
-    {"x": 40, "y": 50, "r": 5, "h": 40},
-    {"x": 40, "y": 60, "r": 5, "h": 40},
-    {"x": 40, "y": 70, "r": 5, "h": 40},
-    {"x": 40, "y": 80, "r": 5, "h": 40},
-
-    {"x": 40, "y": 90, "r": 5, "h": 40},
-    {"x": 10, "y": 40, "r": 5, "h": 40},
-    {"x": 10, "y": 10, "r": 5, "h": 40},
-    {"x": 10, "y": 20, "r": 5, "h": 40},
-    {"x": 10, "y": 50, "r": 5, "h": 40},
-    {"x": 10, "y": 60, "r": 5, "h": 40},
-    {"x": 10, "y": 70, "r": 5, "h": 40},
-    {"x": 10, "y": 80, "r": 5, "h": 40},
-    {"x": 10, "y": 90, "r": 5, "h": 40},
-    {"x": 70, "y": 40, "r": 5, "h": 40},
-    {"x": 70, "y": 10, "r": 5, "h": 40},
-    {"x": 70, "y": 20, "r": 5, "h": 40},
-    {"x": 70, "y": 50, "r": 5, "h": 40},
-    {"x": 70, "y": 60, "r": 5, "h": 40},
-    {"x": 70, "y": 70, "r": 5, "h": 40},
-    {"x": 70, "y": 80, "r": 5, "h": 40},
-    {"x": 70, "y": 90, "r": 5, "h": 40}
+    {"x": 40, "y": 40, "r": 5, "h": 100},
 ]
 
 fig = plt.figure()
@@ -72,6 +48,8 @@ ax.set_title("Simulacija: Dron prati objekat")
 dron_dot, = ax.plot([], [], [], 'go', label='Dron')
 obj_dot, = ax.plot([], [], [], 'ro', label='Objekat')
 linija, = ax.plot([], [], [], 'b-')
+kalman_dot, = ax.plot([], [], [], 'x', color='black', label='Kalman predikcija')
+
 # Prepreke
 for p in prepreke:
     draw_cylinder(ax, p["x"], p["y"], p["r"], p["h"], grid)
@@ -102,11 +80,16 @@ dron_dir = np.arctan2(1, 1)
 br=0
 
 angle_log=[]
+
+
+
+kalman_preds = []
 # br_line=0
 for step in range(STEPS):
     if step % 23 == 0 and step > 0:
         direction_index = (direction_index + 1) % len(objekat_directions)
         objekat_vel = objekat_directions[direction_index] / np.linalg.norm(objekat_directions[direction_index]) * OBJECT_SPEED
+        
 
     next_obj = objekat_pos + objekat_vel
     gx, gy, gz = int(round(next_obj[0])), int(round(next_obj[1])), int(round(next_obj[2]))
@@ -116,7 +99,7 @@ for step in range(STEPS):
 
     vidi_objekat = is_in_fov(dron_pos, objekat_pos, grid)
     predicted = kf.predict()
-
+    kalman_preds.append(predicted.copy())
 
     # VIDI OBJEKAT
     if vidi_objekat:
@@ -169,14 +152,22 @@ print("Broj puta kada je putanja prekinuta ", vidno_polje.br_line)
 def update(frame):
     d = dron_path[frame]
     o = objekat_path[frame]
+    k = kalman_preds[frame]
+
     dron_dot.set_data([d[0]], [d[1]])
     dron_dot.set_3d_properties([d[2]])
+
     obj_dot.set_data([o[0]], [o[1]])
     obj_dot.set_3d_properties([o[2]])
+
+    kalman_dot.set_data([k[0]], [k[1]])
+    kalman_dot.set_3d_properties([k[2]])
+
     linija.set_data([d[0], o[0]], [d[1], o[1]])
     linija.set_3d_properties([d[2], o[2]])
     linija.set_color(colors[frame])
-    return dron_dot, obj_dot, linija
+    return dron_dot, obj_dot, kalman_dot, linija
+
 
 ani = FuncAnimation(fig, update, frames=STEPS, interval=100, blit=True)
 plt.legend()
@@ -211,6 +202,8 @@ fig2.suptitle("Analiza: Vidljivost, Udaljenost i Kalman Greška", fontsize=14)
 axs[0].plot(vidljivost_signal, label='Vidljivost (1=vidi)', color='green')
 axs[0].set_ylabel("Vidljivost")
 axs[0].legend(loc="upper right")
+
+
 
 axs[1].plot(udaljenost_signal, label='Udaljenost od objekta', color='blue')
 axs[1].set_ylabel("Udaljenost")
